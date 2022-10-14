@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QDialog, QApplication, QPushButton, QVBoxLayout, QLabel, QLineEdit, QToolBar, QMainWindow, QAction, QFileDialog, QGridLayout, QCheckBox, QHBoxLayout, QTableView
+from PyQt5.QtWidgets import QDialog, QApplication, QPushButton, QVBoxLayout, QLabel, QLineEdit, QToolBar, QMainWindow, QFileDialog, QGridLayout, QCheckBox, QHBoxLayout, QTableView, QMessageBox
 import PyQt5.QtCore as QtCore
 import PyQt5.QtWidgets as QtWidgets
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -10,15 +10,11 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-# slider for color scalar
-# show what mass was found
-# show what file is loaded
-# print that with jpeg option
 # tic add up all values in second column of original csvs then divide by integration if whatever mass you want
-# x1 = 76  # len1_len2_peaklist.csv
-# y1 = 521 # <= why is this hardcoded lo
-x1 = 4 # len1_len2_peaklist.csv
-y1 = 4
+x1 = 76  # len1_len2_peak list.csv
+y1 = 521 # <= why is this hardcoded lo
+# x1 = 2 # len1_len2_peaklist.csv
+# y1 = 2
 class TableModel(QtCore.QAbstractTableModel): #I dont know i just stole all this code
     def __init__(self, data):
         super(TableModel, self).__init__()
@@ -46,6 +42,9 @@ class Window(QDialog,QMainWindow):
         self.templist = []
         self.array = []
         self.temp1 = 0
+        self.listname = ""
+        self.TIClo = False
+        self.temp2 = 0
         super(Window, self).__init__(parent)
         # a figure instance to plot on
         self.figure = plt.figure()
@@ -56,9 +55,13 @@ class Window(QDialog,QMainWindow):
 
         # Toolbar
         self.toolbar = QToolBar(self)
-        self.toolbar.addAction('Load Folder        ',self.heatarrayg)
-        self.toolbar.addAction('Load Folder for Normalization')
+        self.toolbar.addAction('Load Folder',self.heatarrayg)
         self.toolbar.addSeparator()
+        self.toolbar.addAction('Load Folder for Normalization',self.normalload)
+        self.toolbar.addSeparator()
+        self.toolbar.addAction("Load TIC Folder",self.TICload)
+        self.toolbar.addSeparator()
+        self.toolbar.addAction('Save Image As',self.savepng)
         # mass search textbox
         self.label = QLabel(self)
         self.checkbox = QCheckBox("Normalize Axis")
@@ -71,10 +74,12 @@ class Window(QDialog,QMainWindow):
         self.table = QTableView()
         self.checkbox2 = QCheckBox("Normalize Data")
         self.checkbox3 = QCheckBox("Flip Normalization")
+        self.checkbox4 = QCheckBox("TIC Normalize Data")
         # Just some button connected to `heatmap` method
         self.button = QPushButton('Graph/Regraph')
         #vspacer = QtWidgets.QSpacerItem(500, 40)
         self.button.clicked.connect(self.heatmap)
+        #self.setFixedSize(1000,1000)
         #creating sublayout for row
         hlayout = QHBoxLayout()
         hlayout.addWidget(self.line)
@@ -86,6 +91,7 @@ class Window(QDialog,QMainWindow):
         hlayout1.addWidget(self.label)
         hlayout2 = QHBoxLayout()
         hlayout2.addWidget(self.checkbox2)
+        hlayout2.addWidget(self.checkbox4)
         hlayout2.addWidget(self.checkbox3)
         #another sublayout for column of table
         vlayout = QVBoxLayout()
@@ -128,6 +134,19 @@ class Window(QDialog,QMainWindow):
         except:
             print("error!")
         self.temp= list
+        arr = self.temp
+        try:
+            self.array = arr[0]
+        except:
+            print("error!")
+        try:
+            self.array1 = arr[15388]  # getting abundances at a random pixel somewhere in the middle bc im lazy (to be specific the 29th line at pixel 250)
+        except:
+            try:
+                self.array1 = arr[0]
+            except:
+                print("error!")
+        Window.table(self)
     def normalload(self): #this function would be faster if all csvs were combined into one and pd was used but i dont feel like it
         if self.temp1 != 0: #resetting our class variable
             self.temp1 = 0
@@ -146,20 +165,63 @@ class Window(QDialog,QMainWindow):
         except:
             print("error!")
         self.temp1 = list
+    def TICload(self):
+        self.TIClo = True
+        loadlst = Window.loadlist(self)  # getting our list of files to load
+        lengthload = len(loadlst)
+        list = []
+        try:  # loading our files
+            for i in range(0, lengthload):
+                a = pd.read_csv(loadlst[i], delimiter=',',
+                                  dtype=float, header=None)  # this is slow, but so is every other method. Not sure if it can be optimized.
+                b = a.to_numpy()
+                b = b[:, 1]
+                b = np.sum(b)
+                if i % y1 == 0:
+                    var = i / y1
+                    print("File {ab} / {bc} Loaded".format(ab=int(var),bc=x1))
+                # b = a[:,1]
+                # np.sum(b)
+                list.append(b)
+        except:
+             print("error!")
+        self.temp2 = list
+        self.TIClo = False
+        print("Done Loading TIC!")
 
     def loadlist(self): #list of files to load (what a mess)
-        if self.templist !=0:
-            self.templist = []
-        path1 = QFileDialog.getExistingDirectory(self) + '/'
-        for x in range(1, x1 + 1):  # x_blah
-            for y in range(0, y1):  # blah_y
-                pathnumx = str(x)
-                pathnumy = str(y)
-                pathnum = pathnumx + "_" + pathnumy + "_peaklist.csv"
-                path = path1 + pathnum
-                self.templist.append(path)
-        return(self.templist)
-
+        if self.TIClo == False:
+            if self.templist !=0:
+                self.templist = []
+            path1 = QFileDialog.getExistingDirectory(self) + '/'
+            for x in range(1, x1 + 1):  # x_blah
+                for y in range(0, y1):  # blah_y
+                    pathnumx = str(x)
+                    pathnumy = str(y)
+                    pathnum = pathnumx + "_" + pathnumy + "_peaklist.csv"
+                    path = path1 + pathnum
+                    self.templist.append(path)
+            self.listname = self.templist[0][0]
+            return(self.templist)
+        if self.TIClo == True:
+            if self.templist !=0:
+                self.templist = []
+            path1 = QFileDialog.getExistingDirectory(self) + '/'
+            for x in range(1, x1 + 1):  # x_blah
+                for y in range(0, y1):  # blah_y
+                    pathnumx = str(x)
+                    pathnumy = str(y)
+                    pathnum = pathnumx + "_" + pathnumy + ".csv"
+                    path = path1 + pathnum
+                    self.templist.append(path)
+            self.listname = self.templist[0][0]
+            return(self.templist)
+    def savepng(self):
+        name = QFileDialog.getSaveFileName(self, 'Save File')
+        save = (name[0] + ".png")
+        print(save)
+        plt.savefig(save)
+        print("saved!")
     # def heatarray(self):
     #     lengthload = len(Window.loadlist(self))
     #     loadlst = Window.loadlist(self)
@@ -174,16 +236,53 @@ class Window(QDialog,QMainWindow):
     #     return(list)
 
     def arraymanipulation(self,x1,y1): #gives us our final array
+        if self.checkbox4.isChecked() == True:
+            arr = self.temp
+            arr1 = self.temp2
+            self.array = arr[0]
+            lengthload = len(arr)
+            heatarray = np.empty((0), float)  # create an emtpy float array
+            arr1TIC = []
+            arr2TIC = []
+            # val1 = int(self.line.text())
+            for i in range(0, lengthload):
+                a = arr[i]
+                ab = arr1[i]
+                arr1TIC.append(np.sum(a[:, 1]))
+                arr2TIC.append(ab)
+            arr1TIC = np.asarray(arr1TIC)
+            arr2TIC = np.asarray(arr2TIC)
+            arr1TIC = np.reshape(arr1TIC, (x1, y1))
+            arr2TIC = np.reshape(arr2TIC, (x1, y1))
+            if self.checkbox3.isChecked() == False:
+                heatarray1 = np.divide(arr1TIC, arr2TIC)
+            else:
+                heatarray1 = np.divide(arr2TIC, arr1TIC)
+            return heatarray1
         if self.checkbox2.isChecked() == False:
             arr = self.temp
-            self.array = arr[0]
+            try:
+                self.array = arr[0]
+            except:
+                print("error!")
+                return
+
             try:
                 self.array1 = arr[15388] #getting abundances at a random pixel somewhere in the middle bc im lazy (to be specific the 29th line at pixel 250)
             except:
                 self.array1=arr[0]
             lengthload = len(arr)
             heatarray = np.empty((0), float)
-            val1 = int(self.line.text())
+            try:
+                val1 = int(self.line.text())
+            except:
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("Error")
+                msg.setInformativeText('No Mass Set!')
+                msg.setWindowTitle("Error")
+                msg.exec_()
+                return
             for i in range(0, lengthload):
                 a = arr[i]
                 a1 = a[:, 0] #a1 = first column of array
@@ -196,57 +295,113 @@ class Window(QDialog,QMainWindow):
                 heatarray = np.append(heatarray, abun)# adds abundance to the empty array
             heatarray1 = np.reshape(heatarray, (x1, y1)) #reshapes the empty array into the size we want
             return heatarray1
-        else:
+        if self.checkbox2.isChecked() == True:
             arr = self.temp
             arr1 = self.temp1
-            self.array = arr[0]
+            try:
+                self.array = arr[0]
+            except:
+                print("error")
+                return
+            try:
+                self.array1 = arr[15388] #getting abundances at a random pixel somewhere in the middle bc im lazy (to be specific the 29th line at pixel 250)
+            except:
+                self.array1=arr[0]
+            lengthload = len(arr)
+            heatarray = np.empty((0), float) #create an emtpy float array
+            arr1TIC = []
+            arr2TIC = []
+            #val1 = int(self.line.text())
+            for i in range(0, lengthload):
+                a = arr[i]
+                try:
+                    ab = arr1[i]
+                except:
+                    msg = QMessageBox()
+                    msg.setIcon(QMessageBox.Critical)
+                    msg.setText("Error")
+                    msg.setInformativeText('No Protein Loaded To Normalize To!')
+                    msg.setWindowTitle("Error")
+                    msg.exec_()
+                    return
+                arr1TIC.append(np.sum(a[:,1]))
+                arr2TIC.append(np.sum(ab[:,1]))
+            #     a1 = a[:, 0] #a1 = first column of array
+            #     value = val1
+            #     array = np.asarray(a1) #converts our array into an array (lo)
+            #     mass = a1[np.abs(array - value).argmin()] #search for a value closest to mass inputted
+            #     rows, cols = np.where(a == mass) #find the row where the mass = the mass searched for
+            #     abun = a[rows] # does something with the rows
+            #     abun = abun[0, 1] #retrives abundance from second row of the mass found row
+            #     heatarray = np.append(heatarray, abun)# adds abundance to the empty array
+            # heatarray1 = np.reshape(heatarray, (x1, y1)) #reshapes the empty array into the size we want
+            arr1TIC = np.asarray(arr1TIC)
+            arr2TIC = np.asarray(arr2TIC)
+            arr1TIC = np.reshape(arr1TIC, (x1,y1))
+            arr2TIC = np.reshape(arr2TIC, (x1,y1))
+            if self.checkbox3.isChecked() == False:
+                heatarray1 = np.divide(arr1TIC,arr2TIC)
+            else:
+                heatarray1 = np.divide(arr2TIC,arr1TIC)
+            return heatarray1
 
     def heatmap(self): #draw that shit
-        if self.checkbox2.isChecked() == False:
-            array = Window.arraymanipulation(self, x1, y1)
-            if self.checkbox.isChecked() ==True:
-                array = array/np.linalg.norm(array)
-            self.figure.clear()
-            ax = self.figure.add_subplot(111)
-            ax.set_axis_on()
-            array = array * (array >= 0)# if less than 0 make it 0
-            plt.axis('off')
-            if self.checkbox1.isChecked() == True:
-                quantile = np.quantile(array, 0.99)
-                quantile = quantile * float(self.line1.text())
-                im = ax.imshow(array,cmap='hot',interpolation='none',vmax=quantile)
-            if self.checkbox1.isChecked() ==False:
-                im = ax.imshow(array, cmap='hot', interpolation='none')
-            ax.set_aspect(5)
-            #divider = make_axes_locatable(ax)
-            #cax = divider.append_axes("right",size="5%",pad=0.05)
-            cax = self.figure.add_axes([ax.get_position().x1+0.01,ax.get_position().y0,0.02,ax.get_position().height]) #somehow makes my color bar axis the same height as my heatmap
-            plt.colorbar(im,cax=cax) #colorbar
-            self.canvas.draw()
-            Window.table(self)
-        else:
-            array = Window.arraymanipulation(self, x1, y1)
-            if self.checkbox.isChecked() == True:
-                array = array / np.linalg.norm(array)
-            self.figure.clear()
-            ax = self.figure.add_subplot(111)
-            ax.set_axis_on()
-            array = array * (array >= 0)  # if less than 0 make it 0
-            plt.axis('off')
-            if self.checkbox1.isChecked() == True:
-                quantile = np.quantile(array, 0.99)
-                quantile = quantile * float(self.line1.text())
-                im = ax.imshow(array, cmap='hot', interpolation='none', vmax=quantile)
-            if self.checkbox1.isChecked() == False:
-                im = ax.imshow(array, cmap='hot', interpolation='none')
-            ax.set_aspect(5)
-            # divider = make_axes_locatable(ax)
-            # cax = divider.append_axes("right",size="5%",pad=0.05)
-            cax = self.figure.add_axes([ax.get_position().x1 + 0.01, ax.get_position().y0, 0.02,
-                                        ax.get_position().height])  # somehow makes my color bar axis the same height as my heatmap
-            plt.colorbar(im, cax=cax)  # colorbar
-            self.canvas.draw()
-            Window.table(self)
+        try:
+            if self.checkbox2.isChecked() == False:
+                array = Window.arraymanipulation(self, x1, y1)
+                if self.checkbox.isChecked() ==True:
+                    array = array/np.linalg.norm(array)
+                self.figure.clear()
+                ax = self.figure.add_subplot(111)
+                ax.set_axis_on()
+                try:
+                    array = array * (array >= 0)# if less than 0 make it 0
+                except:
+                    print("error!")
+                    return
+                plt.axis('off')
+                if self.checkbox1.isChecked() == True:
+                    quantile = np.quantile(array, 0.99)
+                    quantile = quantile * float(self.line1.text())
+                    im = ax.imshow(array,cmap='hot',interpolation='none',vmax=quantile)
+                if self.checkbox1.isChecked() ==False:
+                    im = ax.imshow(array, cmap='hot', interpolation='none')
+                ax.set_aspect(5)
+                #divider = make_axes_locatable(ax)
+                #cax = divider.append_axes("right",size="5%",pad=0.05)
+                cax = self.figure.add_axes([ax.get_position().x1+0.01,ax.get_position().y0,0.02,ax.get_position().height]) #somehow makes my color bar axis the same height as my heatmap
+                plt.colorbar(im,cax=cax) #colorbar
+                ax.set_title(str(self.templist[0])+ "   Mass: " + self.line.text() + "\n",fontsize=10)
+                self.canvas.draw()
+                Window.table(self)
+            else:
+                array = Window.arraymanipulation(self, x1, y1)
+                if self.checkbox.isChecked() == True:
+                    array = array / np.linalg.norm(array)
+                self.figure.clear()
+                ax = self.figure.add_subplot(111)
+                ax.set_axis_on()
+                array = array * (array >= 0)  # if less than 0 make it 0
+                plt.axis('off')
+                if self.checkbox1.isChecked() == True:
+                    quantile = np.quantile(array, 0.99)
+                    quantile = quantile * float(self.line1.text())
+                    im = ax.imshow(array, cmap='hot', interpolation='none', vmax=quantile)
+                if self.checkbox1.isChecked() == False:
+                    im = ax.imshow(array, cmap='hot', interpolation='none')
+                ax.set_aspect(5)
+                # divider = make_axes_locatable(ax)
+                # cax = divider.append_axes("right",size="5%",pad=0.05)
+                cax = self.figure.add_axes([ax.get_position().x1 + 0.01, ax.get_position().y0, 0.02,
+                                            ax.get_position().height])  # somehow makes my color bar axis the same height as my heatmap
+                plt.colorbar(im, cax=cax)  # colorbar
+                ax.set_title(str(self.templist[0]),fontsize=10)
+                self.canvas.draw()
+                Window.table(self)
+        except Exception as e:
+            print(e)
+            print("error!")
+            return
         # fig = plt.figure()
         # ax = fig.add_subplot(111)
         # ax = plt.Axes(fig, [0., 0., 1., 1.])
