@@ -10,9 +10,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import os
 # tic add up all values in second column of original csvs then divide by integration if whatever mass you want
 x1 = 76  # len1_len2_peak list.csv
-y1 = 521 # <= why is this hardcoded lo
+y1 = 522 # <= why is this hardcoded lo
 # x1 = 2 # len1_len2_peaklist.csv
 # y1 = 2
 class TableModel(QtCore.QAbstractTableModel): #I dont know i just stole all this code
@@ -38,6 +39,8 @@ class TableModel(QtCore.QAbstractTableModel): #I dont know i just stole all this
 
 class Window(QDialog,QMainWindow):
     def __init__(self, parent=None):
+        self.x1 = 0
+        self.y1 = 0
         self.temp = 0
         self.templist = []
         self.array = []
@@ -177,9 +180,9 @@ class Window(QDialog,QMainWindow):
                 b = a.to_numpy()
                 b = b[:, 1]
                 b = np.sum(b)
-                if i % y1 == 0:
-                    var = i / y1
-                    print("File {ab} / {bc} Loaded".format(ab=int(var),bc=x1))
+                if i % self.y1 == 0:
+                    var = i / self.y1
+                    print("File {ab} / {bc} Loaded".format(ab=int(var),bc=self.x1))
                 # b = a[:,1]
                 # np.sum(b)
                 list.append(b)
@@ -189,32 +192,75 @@ class Window(QDialog,QMainWindow):
         self.TIClo = False
         print("Done Loading TIC!")
 
-    def loadlist(self): #list of files to load (what a mess)
+    def loadlist(self): #list of files to load, done dynamically!!!!!
         if self.TIClo == False:
             if self.templist !=0:
                 self.templist = []
-            path1 = QFileDialog.getExistingDirectory(self) + '/'
-            for x in range(1, x1 + 1):  # x_blah
-                for y in range(0, y1):  # blah_y
-                    pathnumx = str(x)
-                    pathnumy = str(y)
-                    pathnum = pathnumx + "_" + pathnumy + "_peaklist.csv"
-                    path = path1 + pathnum
-                    self.templist.append(path)
+            path1 = QFileDialog.getExistingDirectory(self) + '/' #get directory to parse files from
+            self.templist = [f for f in os.listdir(path1) if os.path.isfile(os.path.join(path1, f))] #get all files
+            self.templist = [x for x in self.templist if ".csv" in x] #remove files that dont have .csv
+            self.templist = [path1 + ab for ab in self.templist] #add full filepath
+            #for i in range(0,len(self.templist)):
+                #self.templist[i] = path1 + self.templist[i]
+            listToSort = []
+            for ib in range(1,len(self.templist)):
+                string1 = Window.find_between_r(self, self.templist[ib], "/", "_p") #get our numbers
+                string1 = string1.replace("_", " ") #replace _ with " " to make .split work
+                b = [int(s) for s in string1.split() if s.isdigit()] #get two numbers
+                b.append(int(ib))
+                listToSort.append(b)
+            npSort = np.array(listToSort) #turn list into np array
+            npSort = npSort[np.lexsort((npSort[:,1],npSort[:,0]))] #sort list so 1,0 1,1 1,2 etc
+            listSorted = npSort.tolist() #turn np array back into list
+            listIndex = []
+            for i in range(0,len(listSorted)): #get index of first list
+                temp = listSorted[i][2]
+                listIndex.append(temp)
+            print(len(self.templist))
+            listTemp1 = []
+            for i in range(0,len(self.templist)-1): #make self.templist sorted list
+                temp = listIndex[i]
+                var = self.templist[temp]
+                listTemp1.append(var)
+            self.templist = listTemp1
+            strVar = self.templist[-1]
+            string2 = Window.find_between_r(self, strVar, "/", "_p")  # get our numbers
+            string2 = string2.replace("_", " ")  # replace _ with " " to make .split work
+            b = [int(s) for s in string2.split() if s.isdigit()]  # get two numbers
+
+
+            #print(npSort)
+            #self.templist.sort(key=int)
+            # for x in range(1, self.x1 + 1):  # x_blah
+            #     for y in range(0, self.y1):  # blah_y
+            #         pathnumx = str(x)
+            #         pathnumy = str(y)
+            #         pathnum = pathnumx + "_" + pathnumy + "_peaklist.csv"
+            #         path = path1 + pathnum
+            #         self.templist.append(path)
             self.listname = self.templist[0][0]
+
+            self.x1 = b[0]
+            self.y1 = b[1]
             return(self.templist)
         if self.TIClo == True:
             if self.templist !=0:
                 self.templist = []
             path1 = QFileDialog.getExistingDirectory(self) + '/'
-            for x in range(1, x1 + 1):  # x_blah
-                for y in range(0, y1):  # blah_y
+            for x in range(1, self.x1 + 1):  # x_blah
+                for y in range(0, self.y1):  # blah_y
                     pathnumx = str(x)
                     pathnumy = str(y)
                     pathnum = pathnumx + "_" + pathnumy + ".csv"
                     path = path1 + pathnum
                     self.templist.append(path)
             self.listname = self.templist[0][0]
+            Window.find_between_r(self, self.templist[0], "/", ".csv")
+            string1 = Window.find_between_r(self,self.templist[-1],"/","_p")
+            string1 = string1.replace("_"," ")
+            b = [int(s) for s in string1.split() if s.isdigit()]
+            self.x1 = b[0]
+            self.y1 = b[1]
             return(self.templist)
     def savepng(self):
         name = QFileDialog.getSaveFileName(self, 'Save File')
@@ -234,7 +280,13 @@ class Window(QDialog,QMainWindow):
     #         a = np.delete(a, [3, 2], 1) #removes last two columns
     #         list.append(a)
     #     return(list)
-
+    def find_between_r(self, s, first, last):  # used to find filenames
+        try:
+            start = s.rindex( first ) + len( first )
+            end = s.rindex( last, start )
+            return s[start:end]
+        except ValueError:
+            return ""
     def arraymanipulation(self,x1,y1): #gives us our final array
         if self.checkbox4.isChecked() == True:
             arr = self.temp
@@ -252,8 +304,8 @@ class Window(QDialog,QMainWindow):
                 arr2TIC.append(ab)
             arr1TIC = np.asarray(arr1TIC)
             arr2TIC = np.asarray(arr2TIC)
-            arr1TIC = np.reshape(arr1TIC, (x1, y1))
-            arr2TIC = np.reshape(arr2TIC, (x1, y1))
+            arr1TIC = np.reshape(arr1TIC, (self.x1, self.y1))
+            arr2TIC = np.reshape(arr2TIC, (self.x1, self.y1))
             if self.checkbox3.isChecked() == False:
                 heatarray1 = np.divide(arr1TIC, arr2TIC)
             else:
@@ -293,7 +345,7 @@ class Window(QDialog,QMainWindow):
                 abun = a[rows] # does something with the rows
                 abun = abun[0, 1] #retrives abundance from second row of the mass found row
                 heatarray = np.append(heatarray, abun)# adds abundance to the empty array
-            heatarray1 = np.reshape(heatarray, (x1, y1)) #reshapes the empty array into the size we want
+            heatarray1 = np.reshape(heatarray, (self.x1, self.y1)) #reshapes the empty array into the size we want
             return heatarray1
         if self.checkbox2.isChecked() == True:
             arr = self.temp
@@ -337,8 +389,8 @@ class Window(QDialog,QMainWindow):
             # heatarray1 = np.reshape(heatarray, (x1, y1)) #reshapes the empty array into the size we want
             arr1TIC = np.asarray(arr1TIC)
             arr2TIC = np.asarray(arr2TIC)
-            arr1TIC = np.reshape(arr1TIC, (x1,y1))
-            arr2TIC = np.reshape(arr2TIC, (x1,y1))
+            arr1TIC = np.reshape(arr1TIC, (self.x1,self.y1))
+            arr2TIC = np.reshape(arr2TIC, (self.x1,self.y1))
             if self.checkbox3.isChecked() == False:
                 heatarray1 = np.divide(arr1TIC,arr2TIC)
             else:
@@ -348,7 +400,7 @@ class Window(QDialog,QMainWindow):
     def heatmap(self): #draw that shit
         try:
             if self.checkbox2.isChecked() == False:
-                array = Window.arraymanipulation(self, x1, y1)
+                array = Window.arraymanipulation(self, self.x1, self.y1)
                 if self.checkbox.isChecked() ==True:
                     array = array/np.linalg.norm(array)
                 self.figure.clear()
@@ -369,13 +421,14 @@ class Window(QDialog,QMainWindow):
                 ax.set_aspect(5)
                 #divider = make_axes_locatable(ax)
                 #cax = divider.append_axes("right",size="5%",pad=0.05)
+                x1 = self.x1
                 cax = self.figure.add_axes([ax.get_position().x1+0.01,ax.get_position().y0,0.02,ax.get_position().height]) #somehow makes my color bar axis the same height as my heatmap
                 plt.colorbar(im,cax=cax) #colorbar
                 ax.set_title(str(self.templist[0])+ "   Mass: " + self.line.text() + "\n",fontsize=10)
                 self.canvas.draw()
                 Window.table(self)
             else:
-                array = Window.arraymanipulation(self, x1, y1)
+                array = Window.arraymanipulation(self, self.x1, self.y1)
                 if self.checkbox.isChecked() == True:
                     array = array / np.linalg.norm(array)
                 self.figure.clear()
@@ -392,6 +445,7 @@ class Window(QDialog,QMainWindow):
                 ax.set_aspect(5)
                 # divider = make_axes_locatable(ax)
                 # cax = divider.append_axes("right",size="5%",pad=0.05)
+                x1 = self.x1
                 cax = self.figure.add_axes([ax.get_position().x1 + 0.01, ax.get_position().y0, 0.02,
                                             ax.get_position().height])  # somehow makes my color bar axis the same height as my heatmap
                 plt.colorbar(im, cax=cax)  # colorbar
