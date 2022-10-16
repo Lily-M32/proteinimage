@@ -1,22 +1,13 @@
 import sys
 from PyQt5.QtWidgets import QDialog, QApplication, QPushButton, QVBoxLayout, QLabel, QLineEdit, QToolBar, QMainWindow, QFileDialog, QGridLayout, QCheckBox, QHBoxLayout, QTableView, QMessageBox
-import PyQt5.QtCore as QtCore
-import PyQt5.QtWidgets as QtWidgets
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore
 from PyQt5.QtCore import Qt
-import tkinter as tk
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
-# tic add up all values in second column of original csvs then divide by integration if whatever mass you want
-x1 = 76  # len1_len2_peak list.csv
-y1 = 522 # <= why is this hardcoded lo
-# x1 = 2 # len1_len2_peaklist.csv
-# y1 = 2
-class TableModel(QtCore.QAbstractTableModel): #I dont know i just stole all this code
+class TableModel(QtCore.QAbstractTableModel): #Creates Mass Table on Side
     def __init__(self, data):
         super(TableModel, self).__init__()
         self._data = data
@@ -110,7 +101,7 @@ class Window(QDialog,QMainWindow):
         layout.addLayout(hlayout2,5,0)
         #layout.addLayout(self.table,5,0)
         self.setLayout(layout)
-    def table(self):
+    def table(self): #setting up stuff for the table
         try:
             data = self.array1.tolist()
             #data = [[4,3,2],[5,2,3]] #table
@@ -119,17 +110,20 @@ class Window(QDialog,QMainWindow):
             self.table.show()
         except:
             pass
-    def heatarrayg(self): #this function would be faster if all csvs were combined into one and pd was used but i dont feel like it
+    def heatarrayg(self): #loads all our files
         if self.temp != 0: #resetting our class variable
             self.temp = 0
         loadlst = Window.loadlist(self)  #getting our list of files to load
-        lengthload = len(loadlst)
+        try:
+            lengthload = len(loadlst)
+        except:
+            return
         list = []
         try: #loading our files
             for i in range(0, lengthload):
                 a = 0
                 a = np.genfromtxt(loadlst[i], delimiter=',',
-                                  dtype=float)  # this is slow, but so is every other method. Not sure if it can be optimized.
+                                  dtype=float)   # this is slow, but so is every other method. Could be optimized if all files are combined into one + loaded with pandas
                 a = np.delete(a, 0, 0)  # removes first row
                 a = a[:-1]  # removes last row
                 a = np.delete(a, [3, 2], 1)  # removes last two columns
@@ -150,17 +144,20 @@ class Window(QDialog,QMainWindow):
             except:
                 print("error!")
         Window.table(self)
-    def normalload(self): #this function would be faster if all csvs were combined into one and pd was used but i dont feel like it
+    def normalload(self): #loads our files
         if self.temp1 != 0: #resetting our class variable
             self.temp1 = 0
         loadlst = Window.loadlist(self)  #getting our list of files to load
-        lengthload = len(loadlst)
+        try:
+            lengthload = len(loadlst)
+        except:
+            return
         list = []
         try: #loading our files
             for i in range(0, lengthload):
                 a = 0
                 a = np.genfromtxt(loadlst[i], delimiter=',',
-                                  dtype=float)  # this is slow, but so is every other method. Not sure if it can be optimized.
+                                  dtype=float)  # this is slow, but so is every other method. Could be optimized if all files are combined into one + loaded with pandas
                 a = np.delete(a, 0, 0)  # removes first row
                 a = a[:-1]  # removes last row
                 a = np.delete(a, [3, 2], 1)  # removes last two columns
@@ -168,15 +165,18 @@ class Window(QDialog,QMainWindow):
         except:
             print("error!")
         self.temp1 = list
-    def TICload(self):
+    def TICload(self): #loads TIC files
         self.TIClo = True
         loadlst = Window.loadlist(self)  # getting our list of files to load
-        lengthload = len(loadlst)
+        try:
+            lengthload = len(loadlst)
+        except:
+            return
         list = []
         try:  # loading our files
             for i in range(0, lengthload):
                 a = pd.read_csv(loadlst[i], delimiter=',',
-                                  dtype=float, header=None)  # this is slow, but so is every other method. Not sure if it can be optimized.
+                                  dtype=float, header=None)  #this is slow, even with pandas. loading >25 gigs takes time!
                 b = a.to_numpy()
                 b = b[:, 1]
                 b = np.sum(b)
@@ -193,93 +193,106 @@ class Window(QDialog,QMainWindow):
         print("Done Loading TIC!")
 
     def loadlist(self): #list of files to load, done dynamically!!!!!
-        if self.TIClo == False:
-            if self.templist !=0:
-                self.templist = []
-            path1 = QFileDialog.getExistingDirectory(self) + '/' #get directory to parse files from
-            self.templist = [f for f in os.listdir(path1) if os.path.isfile(os.path.join(path1, f))] #get all files
-            self.templist = [x for x in self.templist if ".csv" in x] #remove files that dont have .csv
-            self.templist = [path1 + ab for ab in self.templist] #add full filepath
-            #for i in range(0,len(self.templist)):
-                #self.templist[i] = path1 + self.templist[i]
-            listToSort = []
-            for ib in range(1,len(self.templist)):
-                string1 = Window.find_between_r(self, self.templist[ib], "/", "_p") #get our numbers
-                string1 = string1.replace("_", " ") #replace _ with " " to make .split work
-                b = [int(s) for s in string1.split() if s.isdigit()] #get two numbers
-                b.append(int(ib))
-                listToSort.append(b)
-            npSort = np.array(listToSort) #turn list into np array
-            npSort = npSort[np.lexsort((npSort[:,1],npSort[:,0]))] #sort list so 1,0 1,1 1,2 etc
-            listSorted = npSort.tolist() #turn np array back into list
-            listIndex = []
-            for i in range(0,len(listSorted)): #get index of first list
-                temp = listSorted[i][2]
-                listIndex.append(temp)
-            print(len(self.templist))
-            listTemp1 = []
-            for i in range(0,len(self.templist)-1): #make self.templist sorted list
-                temp = listIndex[i]
-                var = self.templist[temp]
-                listTemp1.append(var)
-            self.templist = listTemp1
-            strVar = self.templist[-1]
-            string2 = Window.find_between_r(self, strVar, "/", "_p")  # get our numbers
-            string2 = string2.replace("_", " ")  # replace _ with " " to make .split work
-            b = [int(s) for s in string2.split() if s.isdigit()]  # get two numbers
+        try:
+            if self.TIClo == False:
+                if self.templist !=0:
+                    self.templist = []
+                path1 = QFileDialog.getExistingDirectory(self) + '/' #get directory to parse files from
+                self.templist = [f for f in os.listdir(path1) if os.path.isfile(os.path.join(path1, f))] #get all files
+                self.templist = [x for x in self.templist if ".csv" in x] #remove files that dont have .csv
+                self.templist = [path1 + ab for ab in self.templist] #add full filepath
+                listToSort = []
+                for ib in range(0,len(self.templist)):
+                    string1 = Window.find_between_r(self, self.templist[ib], "/", "_p") #get our numbers
+                    string1 = string1.replace("_", " ") #replace _ with " " to make .split work
+                    b = [int(s) for s in string1.split() if s.isdigit()] #get two numbers
+                    b.append(int(ib))
+                    listToSort.append(b)
+                npSort = np.array(listToSort) #turn list into np array
+                npSort = npSort[np.lexsort((npSort[:,1],npSort[:,0]))] #sort list so 1,0 1,1 1,2 etc
+                listSorted = npSort.tolist() #turn np array back into list
+                listIndex = []
+                for i in range(0,len(listSorted)): #get index of first list
+                    temp = listSorted[i][2]
+                    listIndex.append(temp)
+                #print(len(self.templist),"2")
+                listTemp1 = []
+                for i in range(0,len(self.templist)): #make self.templist sorted list
+                    temp = listIndex[i]
+                    var = self.templist[temp]
+                    listTemp1.append(var)
+                self.templist = listTemp1
+                #print(len(self.templist),"3")
+                strVar = self.templist[-1] #get last file in array
+                #print(strVar)
+                string2 = Window.find_between_r(self, strVar, "/", "_p")  # get our numbers
+                string2 = string2.replace("_", " ")  # replace _ with " " to make .split work
+                b = [int(s) for s in string2.split() if s.isdigit()]  # get two numbers
 
 
-            #print(npSort)
-            #self.templist.sort(key=int)
-            # for x in range(1, self.x1 + 1):  # x_blah
-            #     for y in range(0, self.y1):  # blah_y
-            #         pathnumx = str(x)
-            #         pathnumy = str(y)
-            #         pathnum = pathnumx + "_" + pathnumy + "_peaklist.csv"
-            #         path = path1 + pathnum
-            #         self.templist.append(path)
-            self.listname = self.templist[0][0]
+                #print(npSort)
+                #self.templist.sort(key=int)
+                self.listname = self.templist[0][0]
 
-            self.x1 = b[0]
-            self.y1 = b[1]
-            return(self.templist)
-        if self.TIClo == True:
-            if self.templist !=0:
-                self.templist = []
-            path1 = QFileDialog.getExistingDirectory(self) + '/'
-            for x in range(1, self.x1 + 1):  # x_blah
-                for y in range(0, self.y1):  # blah_y
-                    pathnumx = str(x)
-                    pathnumy = str(y)
-                    pathnum = pathnumx + "_" + pathnumy + ".csv"
-                    path = path1 + pathnum
-                    self.templist.append(path)
-            self.listname = self.templist[0][0]
-            Window.find_between_r(self, self.templist[0], "/", ".csv")
-            string1 = Window.find_between_r(self,self.templist[-1],"/","_p")
-            string1 = string1.replace("_"," ")
-            b = [int(s) for s in string1.split() if s.isdigit()]
-            self.x1 = b[0]
-            self.y1 = b[1]
-            return(self.templist)
+                self.x1 = b[0] #get our x (eg *76*_521
+                self.y1 = b[1] #get our y (eg 76_*521*
+                self.y1 = self.y1 + 1 #add one to it to fix some for loop elsewhere
+                return(self.templist)
+            if self.TIClo == True:
+                if self.templist != 0:
+                    self.templist = []
+                path1 = QFileDialog.getExistingDirectory(self) + '/'  # get directory to parse files from
+                self.templist = [f for f in os.listdir(path1) if os.path.isfile(os.path.join(path1, f))]  # get all files
+                self.templist = [x for x in self.templist if ".csv" in x]  # remove files that dont have .csv
+                self.templist = [path1 + ab for ab in self.templist]  # add full filepath
+                # for i in range(0,len(self.templist)):
+                # self.templist[i] = path1 + self.templist[i]
+                listToSort = []
+                # print(len(self.templist),"1")
+                for ib in range(0, len(self.templist)):
+                    string1 = Window.find_between_r(self, self.templist[ib], "/", ".csv")  # get our numbers
+                    string1 = string1.replace("_", " ")  # replace _ with " " to make .split work
+                    b = [int(s) for s in string1.split() if s.isdigit()]  # get two numbers
+                    b.append(int(ib))
+                    listToSort.append(b)
+                npSort = np.array(listToSort)  # turn list into np array
+                npSort = npSort[np.lexsort((npSort[:, 1], npSort[:, 0]))]  # sort list so 1,0 1,1 1,2 etc
+                listSorted = npSort.tolist()  # turn np array back into list
+                listIndex = []
+                for i in range(0, len(listSorted)):  # get index of first list
+                    temp = listSorted[i][2]
+                    listIndex.append(temp)
+                # print(len(self.templist),"2")
+                listTemp1 = []
+                for i in range(0, len(self.templist)):  # make self.templist sorted list
+                    temp = listIndex[i]
+                    var = self.templist[temp]
+                    listTemp1.append(var)
+                self.templist = listTemp1
+                # print(len(self.templist),"3")
+                strVar = self.templist[-1]
+                # print(strVar)
+                string2 = Window.find_between_r(self, strVar, "/", "_p")  # get our numbers
+                string2 = string2.replace("_", " ")  # replace _ with " " to make .split work
+                b = [int(s) for s in string2.split() if s.isdigit()]  # get two numbers
+
+                # print(npSort)
+                # self.templist.sort(key=int)
+                self.listname = self.templist[0][0]
+
+                self.x1 = b[0]
+                self.y1 = b[1]
+                self.y1 = self.y1 + 1
+                return (self.templist)
+        except:
+            print("error!")
+            return
     def savepng(self):
         name = QFileDialog.getSaveFileName(self, 'Save File')
         save = (name[0] + ".png")
         print(save)
         plt.savefig(save)
         print("saved!")
-    # def heatarray(self):
-    #     lengthload = len(Window.loadlist(self))
-    #     loadlst = Window.loadlist(self)
-    #     list = []
-    #     for i in range(0, lengthload):
-    #         a = pd.read_csv(loadlst[i], delimiter=',', dtype=float) #this is slow, but so is every other method. Not sure if it can be optimized.
-    #         a.to_numpy()
-    #         a = np.delete(a, 0, 0) #removes first row
-    #         a = a[:-1] #removes last row
-    #         a = np.delete(a, [3, 2], 1) #removes last two columns
-    #         list.append(a)
-    #     return(list)
     def find_between_r(self, s, first, last):  # used to find filenames
         try:
             start = s.rindex( first ) + len( first )
@@ -397,7 +410,7 @@ class Window(QDialog,QMainWindow):
                 heatarray1 = np.divide(arr2TIC,arr1TIC)
             return heatarray1
 
-    def heatmap(self): #draw that shit
+    def heatmap(self): #draw the map
         try:
             if self.checkbox2.isChecked() == False:
                 array = Window.arraymanipulation(self, self.x1, self.y1)
