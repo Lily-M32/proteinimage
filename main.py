@@ -129,7 +129,7 @@ class Window(QDialog,QMainWindow):
         try: #loading our files
             for i in range(0, lengthload):
                 a = 0
-                print(i)
+                #print(i)
                 a = np.genfromtxt(loadlst[i], delimiter=',',
                                   dtype=float)   # this is slow, but so is every other method. Could be optimized if all files are combined into one + loaded with pandas
                 a = np.delete(a, 0, 0)  # removes first row
@@ -455,7 +455,7 @@ class Window(QDialog,QMainWindow):
                 x1 = self.x1
                 cax = self.figure.add_axes([ax.get_position().x1+0.01,ax.get_position().y0,0.02,ax.get_position().height]) #somehow makes my color bar axis the same height as my heatmap
                 plt.colorbar(im,cax=cax) #colorbar
-                ax.set_title(str(self.imname0)+ "   Mass: " + str(int(self.massFound)) + "\n",fontsize=10)
+                ax.set_title(str(self.imname0)+ "\n" +"   Mass: " + str(int(self.massFound)) + "\n",fontsize=10)
                 self.canvas.draw()
                 Window.table(self)
             else:
