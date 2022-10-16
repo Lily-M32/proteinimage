@@ -38,7 +38,11 @@ class Window(QDialog,QMainWindow):
         self.temp1 = 0
         self.listname = ""
         self.TIClo = False
+        self.normalused = False
         self.temp2 = 0
+        self.imname0 = ''
+        self.imname1 = ''
+        self.massFound = 0
         super(Window, self).__init__(parent)
         # a figure instance to plot on
         self.figure = plt.figure()
@@ -147,7 +151,9 @@ class Window(QDialog,QMainWindow):
     def normalload(self): #loads our files
         if self.temp1 != 0: #resetting our class variable
             self.temp1 = 0
+        self.normalused = True
         loadlst = Window.loadlist(self)  #getting our list of files to load
+        self.normalused = False
         try:
             lengthload = len(loadlst)
         except:
@@ -237,6 +243,10 @@ class Window(QDialog,QMainWindow):
                 self.x1 = b[0] #get our x (eg *76*_521
                 self.y1 = b[1] #get our y (eg 76_*521*
                 self.y1 = self.y1 + 1 #add one to it to fix some for loop elsewhere
+                if self.normalused == False:
+                    self.imname0 = self.templist[0]
+                if self.normalused == True:
+                    self.imname1 = self.templist[0]
                 return(self.templist)
             if self.TIClo == True:
                 if self.templist != 0:
@@ -288,11 +298,14 @@ class Window(QDialog,QMainWindow):
             print("error!")
             return
     def savepng(self):
-        name = QFileDialog.getSaveFileName(self, 'Save File')
-        save = (name[0] + ".png")
-        print(save)
-        plt.savefig(save)
-        print("saved!")
+        try:
+            name = QFileDialog.getSaveFileName(self, 'Save File')
+            save = (name[0] + ".png")
+            print(save)
+            plt.savefig(save)
+            print("saved!")
+        except:
+            return
     def find_between_r(self, s, first, last):  # used to find filenames
         try:
             start = s.rindex( first ) + len( first )
@@ -356,6 +369,7 @@ class Window(QDialog,QMainWindow):
                 mass = a1[np.abs(array - value).argmin()] #search for a value closest to mass inputted
                 rows, cols = np.where(a == mass) #find the row where the mass = the mass searched for
                 abun = a[rows] # does something with the rows
+                self.massFound = abun[0,0]
                 abun = abun[0, 1] #retrives abundance from second row of the mass found row
                 heatarray = np.append(heatarray, abun)# adds abundance to the empty array
             heatarray1 = np.reshape(heatarray, (self.x1, self.y1)) #reshapes the empty array into the size we want
@@ -410,7 +424,7 @@ class Window(QDialog,QMainWindow):
                 heatarray1 = np.divide(arr2TIC,arr1TIC)
             return heatarray1
 
-    def heatmap(self): #draw the map
+    def heatmap(self): #draw the heatmap
         try:
             if self.checkbox2.isChecked() == False:
                 array = Window.arraymanipulation(self, self.x1, self.y1)
@@ -437,7 +451,7 @@ class Window(QDialog,QMainWindow):
                 x1 = self.x1
                 cax = self.figure.add_axes([ax.get_position().x1+0.01,ax.get_position().y0,0.02,ax.get_position().height]) #somehow makes my color bar axis the same height as my heatmap
                 plt.colorbar(im,cax=cax) #colorbar
-                ax.set_title(str(self.templist[0])+ "   Mass: " + self.line.text() + "\n",fontsize=10)
+                ax.set_title(str(self.imname0)+ "   Mass: " + str(int(self.massFound)) + "\n",fontsize=10)
                 self.canvas.draw()
                 Window.table(self)
             else:
@@ -462,7 +476,8 @@ class Window(QDialog,QMainWindow):
                 cax = self.figure.add_axes([ax.get_position().x1 + 0.01, ax.get_position().y0, 0.02,
                                             ax.get_position().height])  # somehow makes my color bar axis the same height as my heatmap
                 plt.colorbar(im, cax=cax)  # colorbar
-                ax.set_title(str(self.templist[0]),fontsize=10)
+                title = str(self.imname0) + " normalized to " + "\n" + str(self.imname1) + "\n"
+                ax.set_title(title,fontsize=10)
                 self.canvas.draw()
                 Window.table(self)
         except Exception as e:
