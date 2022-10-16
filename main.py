@@ -53,6 +53,9 @@ class Window(QDialog,QMainWindow):
 
         # Toolbar
         self.toolbar = QToolBar(self)
+        self.toolbar.addAction("         ")
+        self.toolbar.addAction("         ")
+        self.toolbar.addSeparator()
         self.toolbar.addAction('Load Folder',self.heatarrayg)
         self.toolbar.addSeparator()
         self.toolbar.addAction('Load Folder for Normalization',self.normalload)
@@ -126,6 +129,7 @@ class Window(QDialog,QMainWindow):
         try: #loading our files
             for i in range(0, lengthload):
                 a = 0
+                print(i)
                 a = np.genfromtxt(loadlst[i], delimiter=',',
                                   dtype=float)   # this is slow, but so is every other method. Could be optimized if all files are combined into one + loaded with pandas
                 a = np.delete(a, 0, 0)  # removes first row
