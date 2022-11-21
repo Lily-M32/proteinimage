@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
+import traceback
 class TableModel(QtCore.QAbstractTableModel): #Creates Mass Table on Side
     def __init__(self, data):
         super(TableModel, self).__init__()
@@ -43,6 +44,7 @@ class Window(QDialog,QMainWindow):
         self.imname0 = ''
         self.imname1 = ''
         self.massFound = 0
+        self.toupleab = ''
         super(Window, self).__init__(parent)
         # a figure instance to plot on
         self.figure = plt.figure()
@@ -96,6 +98,7 @@ class Window(QDialog,QMainWindow):
         hlayout2.addWidget(self.checkbox3)
         #another sublayout for column of table
         vlayout = QVBoxLayout()
+        self.table.setFixedSize(200,500)
         vlayout.addWidget(self.table)
         # set the layout
         layout = QGridLayout()
@@ -137,20 +140,20 @@ class Window(QDialog,QMainWindow):
                 a = np.delete(a, [3, 2], 1)  # removes last two columns
                 list.append(a)
         except:
-            print("error!")
+            print("heatarray error")
         self.temp= list
         arr = self.temp
         try:
             self.array = arr[0]
         except:
-            print("error!")
+            print("heatarray error")
         try:
             self.array1 = arr[15388]  # getting abundances at a random pixel somewhere in the middle bc im lazy (to be specific the 29th line at pixel 250)
         except:
             try:
                 self.array1 = arr[0]
             except:
-                print("error!")
+                print("heatarray error")
         Window.table(self)
     def normalload(self): #loads our files
         if self.temp1 != 0: #resetting our class variable
@@ -173,31 +176,42 @@ class Window(QDialog,QMainWindow):
                 a = np.delete(a, [3, 2], 1)  # removes last two columns
                 list.append(a)
         except:
-            print("error!")
+            print("normalload error")
         self.temp1 = list
     def TICload(self): #loads TIC files
         self.TIClo = True
-        loadlst = Window.loadlist(self)  # getting our list of files to load
-        try:
-            lengthload = len(loadlst)
-        except:
-            return
-        list = []
-        try:  # loading our files
-            for i in range(0, lengthload):
-                a = pd.read_csv(loadlst[i], delimiter=',',
-                                  dtype=float, header=None)  #this is slow, even with pandas. loading >25 gigs takes time!
-                b = a.to_numpy()
-                b = b[:, 1]
-                b = np.sum(b)
-                if i % self.y1 == 0:
-                    var = i / self.y1
-                    print("File {ab} / {bc} Loaded".format(ab=int(var),bc=self.x1))
-                # b = a[:,1]
-                # np.sum(b)
-                list.append(b)
-        except:
-             print("error!")
+        list = np.loadtxt("/Users/hhhh/Desktop/proteinimage/braintic.csv",delimiter=",",dtype=float)
+        # list = np.reshape(list,(76,522))
+        list = list.tolist()
+        # loadlst = Window.loadlist(self)  # getting our list of files to load
+        # try:
+        #     lengthload = len(loadlst)
+        # except:
+        #     return
+        # list = []
+        # try:  # loading our files
+        #     for i in range(0, lengthload):
+        #         a = pd.read_csv(loadlst[i], delimiter=',',
+        #                           dtype=float, header=None)  #this is slow, even with pandas. loading >25 gigs takes time!
+        #         b = a.to_numpy()
+        #         b = b[:, 1]
+        #         b = np.sum(b)
+        #         # if (i+1) % self.y1 == 0:
+        #         #     var = i / self.y1
+        #         #     print("File {ab} / {bc} Loaded".format(ab=int(var),bc=self.x1))
+        #         # b = a[:,1]
+        #         # np.sum(b)
+        #         list.append(b)
+        #         if (i+1) % 500 == 0:
+        #             print(f"Tic load %: {(i/lengthload)*100}")
+        # except Exception as e:
+        #      print(f"TICload error{traceback.format_exc()}")
+        # try:
+        #     array1save = np.asarray(list)
+        #     np.savetxt("kidneyTIC1.csv",array1save,delimiter=',') #this doesnt work, fix before next time! delimiter
+        # except Exception as e:
+        #     print(e)
+        #     pass
         self.temp2 = list
         self.TIClo = False
         print("Done Loading TIC!")
@@ -238,7 +252,7 @@ class Window(QDialog,QMainWindow):
                 string2 = Window.find_between_r(self, strVar, "/", "_p")  # get our numbers
                 string2 = string2.replace("_", " ")  # replace _ with " " to make .split work
                 b = [int(s) for s in string2.split() if s.isdigit()]  # get two numbers
-
+                self.toupleab = b
 
                 #print(npSort)
                 #self.templist.sort(key=int)
@@ -251,6 +265,7 @@ class Window(QDialog,QMainWindow):
                     self.imname0 = self.templist[0]
                 if self.normalused == True:
                     self.imname1 = self.templist[0]
+                print(self.templist[-1])
                 return(self.templist)
             if self.TIClo == True:
                 if self.templist != 0:
@@ -289,17 +304,16 @@ class Window(QDialog,QMainWindow):
                 string2 = Window.find_between_r(self, strVar, "/", "_p")  # get our numbers
                 string2 = string2.replace("_", " ")  # replace _ with " " to make .split work
                 b = [int(s) for s in string2.split() if s.isdigit()]  # get two numbers
-
                 # print(npSort)
                 # self.templist.sort(key=int)
                 self.listname = self.templist[0][0]
-
-                self.x1 = b[0]
-                self.y1 = b[1]
-                self.y1 = self.y1 + 1
+                #
+                # self.x1 = b[0]
+                # self.y1 = b[1]
+                # self.y1 = self.y1 + 1
                 return (self.templist)
         except:
-            print("error!")
+            print(f"loadlist error: {traceback.format_exc()}")
             return
     def savepng(self):
         try:
@@ -332,9 +346,26 @@ class Window(QDialog,QMainWindow):
                 ab = arr1[i]
                 arr1TIC.append(np.sum(a[:, 1]))
                 arr2TIC.append(ab)
+            ablen = self.toupleab[0] * (self.toupleab[1]+1)
+            if len(arr1TIC) != ablen:
+                subtract = ablen - len(arr1TIC)
+                list = []
+                for i in range(0, subtract):
+                    list.append(.0001)
+                arr1TIC = np.append(arr1TIC, list)
+            # brain = [1] #some code somewhere makes us lose a single thing here so this fixes it, brain only, no idea tbh
+            # arr1TIC = np.append(arr1TIC, brain)
             arr1TIC = np.asarray(arr1TIC)
             arr2TIC = np.asarray(arr2TIC)
             arr1TIC = np.reshape(arr1TIC, (self.x1, self.y1))
+            if len(arr2TIC) != ablen:
+                subtract = ablen - len(arr2TIC)
+                list = []
+                for i in range(0, subtract):
+                    list.append(.0001)
+                arr2TIC = np.append(arr2TIC, list)
+            # brain = [1]  # some code somewhere makes us lose a single thing here so this fixes it, brain only, no idea tbh
+            # arr2TIC = np.append(arr2TIC, brain)
             arr2TIC = np.reshape(arr2TIC, (self.x1, self.y1))
             if self.checkbox3.isChecked() == False:
                 heatarray1 = np.divide(arr1TIC, arr2TIC)
@@ -346,7 +377,7 @@ class Window(QDialog,QMainWindow):
             try:
                 self.array = arr[0]
             except:
-                print("error!")
+                print("arr manip error")
                 return
 
             try:
@@ -376,6 +407,13 @@ class Window(QDialog,QMainWindow):
                 self.massFound = abun[0,0]
                 abun = abun[0, 1] #retrives abundance from second row of the mass found row
                 heatarray = np.append(heatarray, abun)# adds abundance to the empty array
+            ablen = self.toupleab[0] * (self.toupleab[1]+1)
+            if len(heatarray) != ablen:
+                subtract = ablen - len(heatarray)
+                list = []
+                for i in range(0,subtract):
+                    list.append(.0001)
+                heatarray = np.append(heatarray,list)
             heatarray1 = np.reshape(heatarray, (self.x1, self.y1)) #reshapes the empty array into the size we want
             return heatarray1
         if self.checkbox2.isChecked() == True:
@@ -420,7 +458,26 @@ class Window(QDialog,QMainWindow):
             # heatarray1 = np.reshape(heatarray, (x1, y1)) #reshapes the empty array into the size we want
             arr1TIC = np.asarray(arr1TIC)
             arr2TIC = np.asarray(arr2TIC)
+            ablen = self.toupleab[0] * (self.toupleab[1] + 1)
+            if len(arr1TIC) != ablen:
+                subtract = ablen - len(arr1TIC)
+                list = []
+                for i in range(0, subtract):
+                    list.append(.0001)
+                arr1TIC = np.append(arr1TIC, list)
+            # brain = [1]  # some code somewhere makes us lose a single thing here so this fixes it, brain only, no idea tbh
+            # arr1TIC = np.append(arr1TIC, brain)
             arr1TIC = np.reshape(arr1TIC, (self.x1,self.y1))
+            if len(arr2TIC) != ablen:
+                subtractor = int(ablen) - int(len(arr2TIC))
+                list = []
+                for i in range(0, subtractor):
+                    list.append(.00001)
+                print(len(list))
+                arr2TIC = np.append(arr2TIC, list)
+                print(len(arr2TIC))
+            # brain = [1]  # some code somewhere makes us lose a single thing here so this fixes it, brain only, no idea tbh
+            # arr2TIC = np.append(arr2TIC, brain)
             arr2TIC = np.reshape(arr2TIC, (self.x1,self.y1))
             if self.checkbox3.isChecked() == False:
                 heatarray1 = np.divide(arr1TIC,arr2TIC)
@@ -438,9 +495,9 @@ class Window(QDialog,QMainWindow):
                 ax = self.figure.add_subplot(111)
                 ax.set_axis_on()
                 try:
-                    array = array * (array >= 0)# if less than 0 make it 0
+                    array = array * (array >= .0001)# if less than 0 make it 0
                 except:
-                    print("error!")
+                    print("arr maniu error")
                     return
                 plt.axis('off')
                 if self.checkbox1.isChecked() == True:
@@ -455,7 +512,10 @@ class Window(QDialog,QMainWindow):
                 x1 = self.x1
                 cax = self.figure.add_axes([ax.get_position().x1+0.01,ax.get_position().y0,0.02,ax.get_position().height]) #somehow makes my color bar axis the same height as my heatmap
                 plt.colorbar(im,cax=cax) #colorbar
-                ax.set_title(str(self.imname0)+ "\n" +"   Mass: " + str(int(self.massFound)) + "\n",fontsize=10)
+                if self.checkbox4.isChecked() == True:
+                    ax.set_title(str(self.imname0)  + "\n" +  "TIC Normalized " + "\n", fontsize=10)
+                else:
+                    ax.set_title(str(self.imname0)+ "\n" +"   Mass: " + str(int(self.massFound)) + "\n",fontsize=10)
                 self.canvas.draw()
                 Window.table(self)
             else:
@@ -465,7 +525,7 @@ class Window(QDialog,QMainWindow):
                 self.figure.clear()
                 ax = self.figure.add_subplot(111)
                 ax.set_axis_on()
-                array = array * (array >= 0)  # if less than 0 make it 0
+                array = array * (array >= .0001)  # if less than 0 make it 0
                 plt.axis('off')
                 if self.checkbox1.isChecked() == True:
                     quantile = np.quantile(array, 0.99)
@@ -480,13 +540,16 @@ class Window(QDialog,QMainWindow):
                 cax = self.figure.add_axes([ax.get_position().x1 + 0.01, ax.get_position().y0, 0.02,
                                             ax.get_position().height])  # somehow makes my color bar axis the same height as my heatmap
                 plt.colorbar(im, cax=cax)  # colorbar
-                title = str(self.imname0) + " normalized to " + "\n" + str(self.imname1) + "\n"
-                ax.set_title(title,fontsize=10)
+                if self.checkbox3.isChecked() == False:
+                    title = str(self.imname0) + " normalized to " + "\n" + str(self.imname1) + "\n"
+                if self.checkbox3.isChecked() == True:
+                    title = str(self.imname1) + " normalized to " + "\n" + str(self.imname0) + "\n"
+                ax.set_title(title,fontsize=8)
                 self.canvas.draw()
                 Window.table(self)
         except Exception as e:
-            print(e)
-            print("error!")
+            print(traceback.format_exc())
+            print("heatmap error")
             return
         # fig = plt.figure()
         # ax = fig.add_subplot(111)
