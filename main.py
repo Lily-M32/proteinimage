@@ -5,9 +5,10 @@ from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import os
 import traceback
+#This code needs a cleanup bady. Might do it if i feel like it
+
 class TableModel(QtCore.QAbstractTableModel): #Creates Mass Table on Side
     def __init__(self, data):
         super(TableModel, self).__init__()
@@ -36,6 +37,7 @@ class Window(QDialog,QMainWindow):
         self.temp = 0
         self.templist = []
         self.array = []
+        self.array2 = []
         self.temp1 = 0
         self.listname = ""
         self.TIClo = False
@@ -44,6 +46,7 @@ class Window(QDialog,QMainWindow):
         self.imname0 = ''
         self.imname1 = ''
         self.massFound = 0
+        self.massFound1 = 0
         self.toupleab = ''
         super(Window, self).__init__(parent)
         # a figure instance to plot on
@@ -62,22 +65,27 @@ class Window(QDialog,QMainWindow):
         self.toolbar.addSeparator()
         self.toolbar.addAction('Load Folder for Normalization',self.normalload)
         self.toolbar.addSeparator()
-        self.toolbar.addAction("Load TIC Folder",self.TICload)
+        self.toolbar.addAction("Load TIC File",self.TICload)
         self.toolbar.addSeparator()
         self.toolbar.addAction('Save Image As',self.savepng)
         # mass search textbox
         self.label = QLabel(self)
         self.checkbox = QCheckBox("Normalize Axis")
-        self.line = QLineEdit("Enter Mass")
-        self.line.setFixedSize(300,25)
+        self.line = QLineEdit("Enter Protein Mass")
+        self.line.setFixedSize(200,25)
         self.line1 = QLineEdit("Enter Color Scalar")
         self.line1.setFixedSize(200,25)
+        self.line2 = QLineEdit("Enter 2nd Protein Mass")
+        self.line2.setFixedSize(200,25)
         self.label = QLabel("           ")
         self.checkbox1 = QCheckBox("Apply Color Scalar")
         self.table = QTableView()
+        self.table1 = QTableView()
         self.checkbox2 = QCheckBox("Normalize Data")
         self.checkbox3 = QCheckBox("Flip Normalization")
         self.checkbox4 = QCheckBox("TIC Normalize Data")
+        self.checkbox5 = QCheckBox("Sum Array 1")
+        self.checkbox6 = QCheckBox("Sum Array 2")
         # Just some button connected to `heatmap` method
         self.button = QPushButton('Graph/Regraph')
         #vspacer = QtWidgets.QSpacerItem(500, 40)
@@ -86,6 +94,7 @@ class Window(QDialog,QMainWindow):
         #creating sublayout for row
         hlayout = QHBoxLayout()
         hlayout.addWidget(self.line)
+        hlayout.addWidget(self.line2)
         hlayout.addWidget(self.checkbox)
         #another sublayout
         hlayout1 = QHBoxLayout()
@@ -96,21 +105,28 @@ class Window(QDialog,QMainWindow):
         hlayout2.addWidget(self.checkbox2)
         hlayout2.addWidget(self.checkbox4)
         hlayout2.addWidget(self.checkbox3)
+        hlayout3 = QHBoxLayout()
+        hlayout3.addWidget(self.checkbox5)
+        hlayout3.addWidget(self.checkbox6)
         #another sublayout for column of table
-        vlayout = QVBoxLayout()
-        self.table.setFixedSize(200,500)
-        vlayout.addWidget(self.table)
+        vlayout = QGridLayout()
+        self.table.setFixedSize(150,500)
+        self.table1.setFixedSize(150,500)
+        vlayout.addWidget(self.table,0,0)
+        vlayout.addWidget(self.table1,0,1)
         # set the layout
         layout = QGridLayout()
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
         layout.addWidget(self.button)
         layout.addLayout(hlayout,3,0)
-        layout.addLayout(hlayout1,4,0)
+        layout.addLayout(hlayout3,4,0)
+        layout.addLayout(hlayout1,5,0)
         layout.addLayout(vlayout,1,1)
-        layout.addLayout(hlayout2,5,0)
+        layout.addLayout(hlayout2,6,0)
         #layout.addLayout(self.table,5,0)
         self.setLayout(layout)
+        self.setFixedSize(1000,750)
     def table(self): #setting up stuff for the table
         try:
             data = self.array1.tolist()
@@ -120,6 +136,15 @@ class Window(QDialog,QMainWindow):
             self.table.show()
         except:
             pass
+    def table2(self):
+        try:
+            data = self.array2.tolist()
+            #data = [[4,3,2],[5,2,3]] #table
+            self.model1 = TableModel(data)
+            self.table1.setModel(self.model1)
+            self.table1.show()
+        except:
+            print(traceback.format_exc())
     def heatarrayg(self): #loads all our files
         if self.temp != 0: #resetting our class variable
             self.temp = 0
@@ -160,7 +185,6 @@ class Window(QDialog,QMainWindow):
             self.temp1 = 0
         self.normalused = True
         loadlst = Window.loadlist(self)  #getting our list of files to load
-        self.normalused = False
         try:
             lengthload = len(loadlst)
         except:
@@ -178,9 +202,18 @@ class Window(QDialog,QMainWindow):
         except:
             print("normalload error")
         self.temp1 = list
+        try:
+            self.array2 = self.temp1[15388]  # getting abundances at a random pixel somewhere in the middle bc im lazy (to be specific the 29th line at pixel 250)
+        except:
+            try:
+                self.array2 = self.temp1[0]
+            except:
+                print("normalload error")
+        Window.table2(self)
     def TICload(self): #loads TIC files
         self.TIClo = True
-        list = np.loadtxt("/Users/hhhh/Desktop/proteinimage/braintic.csv",delimiter=",",dtype=float)
+        path = QFileDialog.getOpenFileName()
+        list = np.loadtxt(str(path[0]),delimiter=",",dtype=float)
         # list = np.reshape(list,(76,522))
         list = list.tolist()
         # loadlst = Window.loadlist(self)  # getting our list of files to load
@@ -214,7 +247,7 @@ class Window(QDialog,QMainWindow):
         #     pass
         self.temp2 = list
         self.TIClo = False
-        print("Done Loading TIC!")
+        print("TIC Loaded!")
 
     def loadlist(self): #list of files to load, done dynamically!!!!!
         try:
@@ -332,7 +365,7 @@ class Window(QDialog,QMainWindow):
         except ValueError:
             return ""
     def arraymanipulation(self,x1,y1): #gives us our final array
-        if self.checkbox4.isChecked() == True:
+        if self.checkbox4.isChecked() == True: #normalization to TIC
             arr = self.temp
             arr1 = self.temp2
             self.array = arr[0]
@@ -341,10 +374,33 @@ class Window(QDialog,QMainWindow):
             arr1TIC = []
             arr2TIC = []
             # val1 = int(self.line.text())
+            if self.checkbox5.isChecked() == False:
+                try:
+                    val1 = int(self.line.text())
+                except:
+                    msg = QMessageBox()
+                    msg.setIcon(QMessageBox.Critical)
+                    msg.setText("Error")
+                    msg.setInformativeText('No Mass Set!')
+                    msg.setWindowTitle("Error")
+                    msg.exec_()
+                    return
             for i in range(0, lengthload):
                 a = arr[i]
+                if self.checkbox5.isChecked() == True:
+                    arr1TIC.append(np.sum(a[:,1]))
+                else:
+                    a1 = a[:, 0]  # a1 = first column of array
+                    value = val1
+                    array = np.asarray(a1)  # turns array into np array
+                    mass = a1[np.abs(array - value).argmin()]  # search for a value closest to mass inputted
+                    rows, cols = np.where(a == mass)  # find the row where the mass = the mass searched for
+                    abun = a[rows]  # does something with the rows
+                    self.massFound = abun[0, 0]
+                    abun = abun[0, 1]  # retrives abundance from second row of the mass found row
+                    heatarray = np.append(heatarray, abun)  # adds abundance to the empty array
+                    arr1TIC = heatarray
                 ab = arr1[i]
-                arr1TIC.append(np.sum(a[:, 1]))
                 arr2TIC.append(ab)
             ablen = self.toupleab[0] * (self.toupleab[1]+1)
             if len(arr1TIC) != ablen:
@@ -372,7 +428,7 @@ class Window(QDialog,QMainWindow):
             else:
                 heatarray1 = np.divide(arr2TIC, arr1TIC)
             return heatarray1
-        if self.checkbox2.isChecked() == False:
+        if self.checkbox2.isChecked() == False: #non normalzied image
             arr = self.temp
             try:
                 self.array = arr[0]
@@ -386,27 +442,32 @@ class Window(QDialog,QMainWindow):
                 self.array1=arr[0]
             lengthload = len(arr)
             heatarray = np.empty((0), float)
-            try:
-                val1 = int(self.line.text())
-            except:
-                msg = QMessageBox()
-                msg.setIcon(QMessageBox.Critical)
-                msg.setText("Error")
-                msg.setInformativeText('No Mass Set!')
-                msg.setWindowTitle("Error")
-                msg.exec_()
-                return
+            if self.checkbox5.isChecked() == False:
+                try:
+                    val1 = int(self.line.text())
+                except:
+                    msg = QMessageBox()
+                    msg.setIcon(QMessageBox.Critical)
+                    msg.setText("Error")
+                    msg.setInformativeText('No Mass Set!')
+                    msg.setWindowTitle("Error")
+                    msg.exec_()
+                    return
             for i in range(0, lengthload):
                 a = arr[i]
-                a1 = a[:, 0] #a1 = first column of array
-                value = val1
-                array = np.asarray(a1) #no idea
-                mass = a1[np.abs(array - value).argmin()] #search for a value closest to mass inputted
-                rows, cols = np.where(a == mass) #find the row where the mass = the mass searched for
-                abun = a[rows] # does something with the rows
-                self.massFound = abun[0,0]
-                abun = abun[0, 1] #retrives abundance from second row of the mass found row
-                heatarray = np.append(heatarray, abun)# adds abundance to the empty array
+                if self.checkbox5.isChecked() == True:
+                    temp = np.sum(a[:,1])
+                    heatarray = np.append(heatarray, temp)
+                else:
+                    a1 = a[:, 0] #a1 = first column of array
+                    value = val1
+                    array = np.asarray(a1) #turns array into np array
+                    mass = a1[np.abs(array - value).argmin()] #search for a value closest to mass inputted
+                    rows, cols = np.where(a == mass) #find the row where the mass = the mass searched for
+                    abun = a[rows] # does something with the rows
+                    self.massFound = abun[0,0]
+                    abun = abun[0, 1] #retrives abundance from second row of the mass found row
+                    heatarray = np.append(heatarray, abun)# adds abundance to the empty array
             ablen = self.toupleab[0] * (self.toupleab[1]+1)
             if len(heatarray) != ablen:
                 subtract = ablen - len(heatarray)
@@ -416,7 +477,7 @@ class Window(QDialog,QMainWindow):
                 heatarray = np.append(heatarray,list)
             heatarray1 = np.reshape(heatarray, (self.x1, self.y1)) #reshapes the empty array into the size we want
             return heatarray1
-        if self.checkbox2.isChecked() == True:
+        if self.checkbox2.isChecked() == True: #image normalized to other image
             arr = self.temp
             arr1 = self.temp1
             try:
@@ -428,25 +489,76 @@ class Window(QDialog,QMainWindow):
                 self.array1 = arr[15388] #getting abundances at a random pixel somewhere in the middle bc im lazy (to be specific the 29th line at pixel 250)
             except:
                 self.array1=arr[0]
+            try:
+                self.array2 = arr1[15388]
+            except:
+                self.array2 = arr1[0]
             lengthload = len(arr)
             heatarray = np.empty((0), float) #create an emtpy float array
             arr1TIC = []
             arr2TIC = []
+            try:
+                if self.checkbox5.isChecked() == False:
+                    val1 = int(self.line.text())
+                else:
+                    pass
+                if self.checkbox6.isChecked() == False:
+                    val2 = int(self.line2.text())
+                else:
+                    pass
+            except:
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("Error")
+                msg.setInformativeText('No Mass Set!')
+                msg.setWindowTitle("Error")
+                msg.exec_()
+                return
+            try:
+                ab = arr1[1]
+            except:
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("Error")
+                msg.setInformativeText('No Protein Loaded To Normalize To!')
+                msg.setWindowTitle("Error")
+                msg.exec_()
+                return
             #val1 = int(self.line.text())
             for i in range(0, lengthload):
                 a = arr[i]
-                try:
-                    ab = arr1[i]
-                except:
-                    msg = QMessageBox()
-                    msg.setIcon(QMessageBox.Critical)
-                    msg.setText("Error")
-                    msg.setInformativeText('No Protein Loaded To Normalize To!')
-                    msg.setWindowTitle("Error")
-                    msg.exec_()
-                    return
-                arr1TIC.append(np.sum(a[:,1]))
-                arr2TIC.append(np.sum(ab[:,1]))
+                if self.checkbox5.isChecked() == True:
+                    arr1TIC.append(np.sum(a[:,1]))
+                else:
+                    a1 = a[:, 0]  # a1 = first column of array
+                    value = val1
+                    array = np.asarray(a1)  # turns array into np array
+                    mass = a1[np.abs(array - value).argmin()]  # search for a value closest to mass inputted
+                    rows, cols = np.where(a == mass)  # find the row where the mass = the mass searched for
+                    abun = a[rows]  # does something with the rows
+                    self.massFound = abun[0, 0]
+                    abun = abun[0, 1]  # retrives abundance from second row of the mass found row
+                    heatarray = np.append(heatarray, abun)  # adds abundance to the empty array
+                    arr1TIC = heatarray
+            heatarray1 = np.empty((0), float)
+            for i in range(0,lengthload):
+                ab = arr1[i]
+                if self.checkbox6.isChecked() == True:
+                    arr2TIC.append(np.sum(ab[:,1]))
+                else:
+                    a2 = ab[:, 0]  # a1 = first column of array
+                    value = val2
+                    array = np.asarray(a2)  # turns array into np array
+                    mass = a2[np.abs(array - value).argmin()]  # search for a value closest to mass inputted
+                    rows, cols = np.where(ab == mass)  # find the row where the mass = the mass searched for
+                    abun1 = ab[rows]  # does something with the rows
+                    self.massFound1 = abun1[0, 0]
+                    abun1 = abun1[0, 1]  # retrives abundance from second row of the mass found row
+                    heatarray1 = np.append(heatarray1, abun1)  # adds abundance to the empty array
+                    arr2TIC = heatarray1
+
+                # arr1TIC.append(np.sum(a[:,1]))
+                # arr2TIC.append(np.sum(ab[:,1]))
             #     a1 = a[:, 0] #a1 = first column of array
             #     value = val1
             #     array = np.asarray(a1) #converts our array into an array (lo)
@@ -469,13 +581,11 @@ class Window(QDialog,QMainWindow):
             # arr1TIC = np.append(arr1TIC, brain)
             arr1TIC = np.reshape(arr1TIC, (self.x1,self.y1))
             if len(arr2TIC) != ablen:
-                subtractor = int(ablen) - int(len(arr2TIC))
+                subtractor = ablen - len(arr2TIC)
                 list = []
                 for i in range(0, subtractor):
                     list.append(.00001)
-                print(len(list))
                 arr2TIC = np.append(arr2TIC, list)
-                print(len(arr2TIC))
             # brain = [1]  # some code somewhere makes us lose a single thing here so this fixes it, brain only, no idea tbh
             # arr2TIC = np.append(arr2TIC, brain)
             arr2TIC = np.reshape(arr2TIC, (self.x1,self.y1))
@@ -483,6 +593,7 @@ class Window(QDialog,QMainWindow):
                 heatarray1 = np.divide(arr1TIC,arr2TIC)
             else:
                 heatarray1 = np.divide(arr2TIC,arr1TIC)
+            self.normalused = False
             return heatarray1
 
     def heatmap(self): #draw the heatmap
@@ -505,7 +616,12 @@ class Window(QDialog,QMainWindow):
                     quantile = quantile * float(self.line1.text())
                     im = ax.imshow(array,cmap='hot',interpolation='none',vmax=quantile)
                 if self.checkbox1.isChecked() ==False:
-                    im = ax.imshow(array, cmap='hot', interpolation='none')
+                    if (self.checkbox2.isChecked() == True) or (self.checkbox4.isChecked() == True):
+                        quantile = np.quantile(array, 0.99)
+                        quantile = quantile * float(1)
+                        im = ax.imshow(array, cmap='hot', interpolation='none', vmax=quantile)
+                    else:
+                        im = ax.imshow(array, cmap='hot', interpolation='none')
                 ax.set_aspect(5)
                 #divider = make_axes_locatable(ax)
                 #cax = divider.append_axes("right",size="5%",pad=0.05)
@@ -513,9 +629,15 @@ class Window(QDialog,QMainWindow):
                 cax = self.figure.add_axes([ax.get_position().x1+0.01,ax.get_position().y0,0.02,ax.get_position().height]) #somehow makes my color bar axis the same height as my heatmap
                 plt.colorbar(im,cax=cax) #colorbar
                 if self.checkbox4.isChecked() == True:
-                    ax.set_title(str(self.imname0)  + "\n" +  "TIC Normalized " + "\n", fontsize=10)
+                    if self.checkbox5.isChecked() == True:
+                        ax.set_title(str(self.imname0) + "\n" + "TIC Normalized " + " Mass: SUMMED" + "\n",fontsize=10)
+                    else:
+                        ax.set_title(str(self.imname0)  + "\n" +  "TIC Normalized " +  " Mass: "+ str(int(self.massFound)) + "\n", fontsize=10)
                 else:
-                    ax.set_title(str(self.imname0)+ "\n" +"   Mass: " + str(int(self.massFound)) + "\n",fontsize=10)
+                    if self.checkbox5.isChecked() == True:
+                        ax.set_title(str(self.imname0) + "\n" + "   Mass: SUMMED" + "\n", fontsize=10)
+                    else:
+                        ax.set_title(str(self.imname0)+ "\n" +"   Mass: " + str(int(self.massFound)) + "\n",fontsize=10)
                 self.canvas.draw()
                 Window.table(self)
             else:
@@ -532,7 +654,12 @@ class Window(QDialog,QMainWindow):
                     quantile = quantile * float(self.line1.text())
                     im = ax.imshow(array, cmap='hot', interpolation='none', vmax=quantile)
                 if self.checkbox1.isChecked() == False:
-                    im = ax.imshow(array, cmap='hot', interpolation='none')
+                    if (self.checkbox2.isChecked() == True) or (self.checkbox4.isChecked() == True):
+                        quantile = np.quantile(array, 0.99)
+                        quantile = quantile * float(1)
+                        im = ax.imshow(array, cmap='hot', interpolation='none', vmax=quantile)
+                    else:
+                        im = ax.imshow(array, cmap='hot', interpolation='none')
                 ax.set_aspect(5)
                 # divider = make_axes_locatable(ax)
                 # cax = divider.append_axes("right",size="5%",pad=0.05)
@@ -540,10 +667,25 @@ class Window(QDialog,QMainWindow):
                 cax = self.figure.add_axes([ax.get_position().x1 + 0.01, ax.get_position().y0, 0.02,
                                             ax.get_position().height])  # somehow makes my color bar axis the same height as my heatmap
                 plt.colorbar(im, cax=cax)  # colorbar
+                #Im aware this is terrible but a smart way would take me longer than writing this monstricity did
                 if self.checkbox3.isChecked() == False:
-                    title = str(self.imname0) + " normalized to " + "\n" + str(self.imname1) + "\n"
+                    if self.checkbox5.isChecked() == True:
+                        title = str(self.imname0) + " Mass: SUMMED" + " normalized to " + "\n" + str(self.imname1) + " Mass: " + str(int(self.massFound1)) + "\n"
+                    if self.checkbox6.isChecked() == True:
+                        title = str(self.imname0) + " Mass: " + str(int(self.massFound)) + " normalized to " + "\n" + str(self.imname1) + " Mass: SUMMED" + "\n"
+                    if (self.checkbox5.isChecked() == True) and (self.checkbox6.isChecked() == True):
+                        title = str(self.imname0) + " Mass: SUMMED" + " normalized to " + "\n" + str(self.imname1) + " Mass: SUMMED" + "\n"
+                    if (self.checkbox5.isChecked() == False) and (self.checkbox6.isChecked() == False):
+                        title = str(self.imname0) + " Mass: " + str(int(self.massFound)) + " normalized to " + "\n" + str(self.imname1) + " Mass: "+ str(int(self.massFound1))+ "\n"
                 if self.checkbox3.isChecked() == True:
-                    title = str(self.imname1) + " normalized to " + "\n" + str(self.imname0) + "\n"
+                    if self.checkbox5.isChecked() == True:
+                        title = str(self.imname1) + " Mass: SUMMED" + " normalized to " + "\n" + str(self.imname0) + " Mass: "+ str(int(self.massFound))+ "\n"
+                    if self.checkbox6.isChecked() == True:
+                        title = str(self.imname1) + " Mass: " + str(int(self.massFound1)) + " normalized to " + "\n" + str(self.imname0) + " Mass: SUMMED" + "\n"
+                    if (self.checkbox5.isChecked() == True) and (self.checkbox6.isChecked() == True):
+                        title = str(self.imname1) + " Mass: SUMMED" + " normalized to " + "\n" + str(self.imname0) + " Mass: SUMMED" + "\n"
+                    if (self.checkbox5.isChecked() == False) and (self.checkbox6.isChecked() == False):
+                        title = str(self.imname1) + " Mass: " + str(int(self.massFound1)) + " normalized to " + "\n" + str(self.imname0) + " Mass: "+ str(int(self.massFound))+ "\n"
                 ax.set_title(title,fontsize=8)
                 self.canvas.draw()
                 Window.table(self)
